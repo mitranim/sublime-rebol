@@ -2,7 +2,10 @@
 <plist version="1.0">
 <dict>
   <key>scope</key>
-  <string>entity.name.tag.rebol</string>
+  <string>
+    source.rebol entity.name meta.block,
+    entity.name.tag.rebol
+  </string>
   <key>settings</key>
   <dict>
     <key>showInSymbolList</key>
