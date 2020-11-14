@@ -1,6 +1,5 @@
 %YAML 1.2
 ---
-version: 2
 file_extensions: [rebol, reds, red, r]
 scope: source.rebol
 
@@ -12,8 +11,7 @@ variables:
   non_ident_chars: \[\]{}"\(\)/\\@#\$%\^,:;<>\s
   non_ident_start_chars: \d'{{non_ident_chars}}
   ident: '[^{{non_ident_start_chars}}][^{{non_ident_chars}}]*'
-  exponent: '[Ee][+-]?'
-  fractional: \d+([.,])\d+(?:({{exponent}})\d+)?
+  fractional: \d+([.,])\d+(?:([Ee][+-]?)\d+)?
   non_url_chars: '\s\[\]\(\){}"%'
   non_email_chars: '{{non_url_chars}}:'
 
@@ -240,14 +238,10 @@ contexts:
     - match: \b(?:true|false)\b
       scope: constant.language.rebol
 
-  # TODO: heuristic for `variable.function`?
   match-idents:
-    - match: (?={{ident}}:)
-      branch_point: decl
-      branch:
-        - branch-decl-func
-        - branch-decl-function
-        - branch-decl-other
+    - include: match-decl-func
+    - include: match-decl-function
+    - include: match-decl-other
     - include: match-ident-type
     - include: match-ident-other
 
@@ -259,33 +253,32 @@ contexts:
     - match: '{{ident}}'
       scope: variable.other.rebol
 
-  branch-decl-func:
-    - match: ({{ident}})(:)
+  match-decl-func:
+    - match: ({{ident}})(:)\s*(func)(?![^{{non_ident_chars}}])
       captures:
         1: entity.name.function.rebol
         2: keyword.operator.assignment.rebol
-      set: branch-decl-pop-func
-    - match: (?=\S)
-      fail: decl
-
-  branch-decl-pop-func:
-    - match: (?=func(?![^{{non_ident_chars}}]))
-      set: pop-func
-    - match: (?=\S)
-      fail: decl
-
-  pop-func:
-    - match: ''
-      set:
+        3: storage.type.function.rebol
+      push:
         - pop-block
         - pop-params
-        - pop-func-ident
 
-  pop-func-ident:
-    - match: func(?![^{{non_ident_chars}}])
-      scope: storage.type.function.rebol
-      pop: true
-    - include: pop-before-nonblank
+  match-decl-function:
+    - match: ({{ident}})(:)\s*(function)(?![^{{non_ident_chars}}])
+      captures:
+        1: entity.name.function.rebol
+        2: keyword.operator.assignment.rebol
+        3: storage.type.function.rebol
+      push:
+        - pop-block
+        - pop-locals
+        - pop-params
+
+  match-decl-other:
+    - match: '({{ident}})(:)'
+      captures:
+        1: entity.name.rebol
+        2: keyword.operator.assignment.rebol
 
   pop-params:
     - match: \[
@@ -303,35 +296,6 @@ contexts:
       scope: variable.parameter.rebol
     - include: main
 
-  branch-decl-function:
-    - match: ({{ident}})(:)
-      captures:
-        1: entity.name.function.rebol
-        2: keyword.operator.assignment.rebol
-      set: branch-decl-pop-function
-    - match: (?=\S)
-      fail: decl
-
-  branch-decl-pop-function:
-    - match: (?=function(?![^{{non_ident_chars}}]))
-      set: pop-function
-    - match: (?=\S)
-      fail: decl
-
-  pop-function:
-    - match: ''
-      set:
-        - pop-block
-        - pop-locals
-        - pop-params
-        - pop-function-ident
-
-  pop-function-ident:
-    - match: function(?![^{{non_ident_chars}}])
-      scope: storage.type.function.rebol
-      pop: true
-    - include: pop-before-nonblank
-
   pop-locals:
     - match: \[
       scope: punctuation.section.block.begin.rebol
@@ -347,13 +311,6 @@ contexts:
     - match: '{{ident}}'
       scope: variable.declaration.rebol
     - include: main
-
-  branch-decl-other:
-    - match: '({{ident}})(:)'
-      captures:
-        1: entity.name.rebol
-        2: keyword.operator.assignment.rebol
-      pop: true
 
   match-punctuation:
     - include: match-slash
