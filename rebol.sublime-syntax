@@ -1,5 +1,6 @@
 %YAML 1.2
 ---
+version: 2
 file_extensions: [rebol, reds, red, r]
 scope: source.rebol
 
