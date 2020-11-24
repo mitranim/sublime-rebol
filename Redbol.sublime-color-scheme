@@ -116,6 +116,12 @@
             "foreground": "var(tag)",
         },
         {
+            "name": "Tags (Rebol & Red only)",
+            "scope": "entity.tag.redbol",
+            "foreground": "var(tag)",
+            "background": "var(white4)",
+        },
+        {
             "name": "Storage",
             "scope": "storage",
             "foreground": "var(storage)"
@@ -434,7 +440,7 @@
         },
         {
             "name": "entity.name.function",
-            "scope": "entity.name.function",
+            "scope": "entity.name.function, entity.name.class.redbol",
             "foreground": "#a62f00",
             "background": "#FFE9D1",
             "font_style": "bold",
@@ -566,8 +572,13 @@
         },
         */
         {
+            "name": "punctuation.definition.comment.line",
+            "scope": "punctuation.definition.comment.line",
+            "foreground": "var(comment)",
+        },
+        {
             "name": "punctuation.definition.comment.begin",
-            "scope": "punctuation.definition.comment.begin",
+            "scope": "punctuation.definition.comment.begin, punctuation.definition.comment.end",
             "foreground": "color(#91428b blend(#fff 30%))",
         },
         {
@@ -654,12 +665,11 @@
         },
         */
         {
-           "name": "storage.type.function",
-           "scope": "storage.type.function",
+           "name": "Function and object declaration",
+           "scope": "storage.type.function, storage.type.class.redbol",
            "foreground": "color(var(function) blend(#000 70%))",
            "font_style": "bold italic",
         },
-        
         {
            "name": "storage.type.issue",
            "scope": "storage.type.issue",
@@ -797,6 +807,11 @@
             "name": "XML comment",
             "scope": "string.unquoted.cdata",
             "foreground": "var(comment)",
+        },
+        {
+            "name": "HTML tag attribute",
+            "scope": "meta.attribute-with-value.html string.quoted",
+            "foreground": "var(string3)",
         },
 
     ]
