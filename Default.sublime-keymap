@@ -1,0 +1,22 @@
+[
+	// Disable apostrophe auto-pairing
+	{
+		"keys": ["'"],
+		"command": "insert_snippet",
+		"args": {"contents": "'"},
+		"context": [
+			{"key": "selector", "operator": "equal", "operand": "source.redbol"},
+			{"key": "selector", "operator": "not_equal", "operand": "source.redbol entity.tag"}
+		]
+	},
+	// Enable ^() auto-pairing
+	{
+		"keys": ["("],
+		"command": "insert_snippet",
+		"args": {"contents": "(${0:$SELECTION})"},
+		"context": [
+			{"key": "selector", "operator": "equal", "operand": "source.redbol string"},
+			{"key": "preceding_text", "operator": "regex_contains", "operand": "\\^$", "match_all": true },
+		]
+	}
+]

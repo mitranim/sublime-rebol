@@ -3,8 +3,8 @@
 <dict>
   <key>scope</key>
   <string>
-    source.rebol entity.name meta.block,
-    entity.name.tag.rebol
+    <!--source.redbol entity.name meta.block,-->
+    entity.name.tag.redbol
   </string>
   <key>settings</key>
   <dict>
