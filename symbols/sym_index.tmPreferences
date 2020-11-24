@@ -2,7 +2,8 @@
 <plist version="1.0">
 <dict>
   <key>scope</key>
-  <string>source.rebol entity.name - meta.block</string>
+  <string>source.redbol entity.name.function</string>
+  <!--<string>source.redbol entity.name - meta.block</string>-->
   <key>settings</key>
   <dict>
     <key>showInSymbolList</key>

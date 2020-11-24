@@ -1,0 +1,620 @@
+%YAML 1.2
+---
+# http://www.sublimetext.com/docs/3/syntax.html
+name: "Rebol & Red"
+file_extensions:
+  - r
+  - r2
+  - r3
+  - reb
+  - red
+  - reds
+
+variables:
+  comment_line_start: ;
+  delimiters: \[\]{}"\(\)/\\@#\$%\^,;
+  non_ident_chars: '{{delimiters}}\s'
+  non_ident_start_chars: \d'{{non_ident_chars}}
+  ident: '[^{{non_ident_start_chars}}][^{{non_ident_chars}}]*'
+  inf_or_nan: '([+-]?1\.#(?i)(inf|nan))'
+  float_or_int: '[+-]?\d+(?:(\.)\d+)?(?:([Ee][+-]?)\d+)?'
+  non_url_chars: '\s\[\]\(\){}";'
+  non_email_chars: '{{non_url_chars}}:'
+  months: (?i)(Jan(u(a(ry?)?)?)?|Feb(u(a(ry?)?)?)?|Mar(ch?)?|Apr(il?)?|May|June?|July?|Aug(u(st?)?)?|Sep(t(e(m(b(er?)?)?)?)?)?|Oct(o(b(er?)?)?)?|Nov(e(m(b(er?)?)?)?)?|Dec(e(m(b(er?)?)?)?)?)
+  lex_delimit: \x00\x0A\x0D\x20\x22\(\)/;\[\]{}
+  any_word_chars: '[^{{lex_delimit}}]*'
+  lit_word_start_chars: ^[\d\'\:@]   #awoid: '2nd ''word ':word '@ref
+  lit_word_chars: '[{{lit_word_start_chars}}]{{any_word_chars}}'
+  refinement_chars: '{{any_word_chars}}'
+  word_boundary: (?![^{{non_ident_chars}}])
+
+first_line_match: '^\s*(?i)(Rebol|Red)\s\['
+scope: source.redbol
+contexts:
+  prototype:
+    - include: match-comment-lines
+
+  main:
+    - include: match-literals
+    - include: match-constants
+    - include: match-comment
+    - include: match-idents
+
+   # - include: type-literal
+   # - include: strings
+   # - include: values
+   # - include: words
+
+    - include: match-punctuation
+
+  match-literals:
+    - include: match-time
+    - include: match-date
+    - include: match-money
+    - include: match-tuple
+    - include: match-pair
+    - include: match-tag
+    - include: match-lit-word
+    - include: match-refinement
+    - include: match-char
+    - include: match-hashtag       # in Rebol #foo@some is email!, in Red issue! and ref! (so far)
+    - include: match-any-string
+    - include: match-number
+
+  match-any-string:
+    - include: match-file
+    - include: match-binary
+    - include: match-string
+    - include: match-url
+    - include: match-email        # must be after lit-word! and refinement!
+    #- include: match-ref        # ref! looks like @name, currently substituted with email!
+
+  match-number:
+    - include: match-hex-integers
+    - match: '{{inf_or_nan}}'
+      scope: constant.numeric.redbol
+    - match: '[+-]?\d+\.(#)'
+      scope: invalid.redbol
+      captures:
+        1: invalid.illegal.redbol
+    - match: '[+-]?\d+(?:(\.)\d+)?(?:(([Ee])(([+-])?\d+)))?'
+      scope: constant.numeric.redbol
+      captures:
+        1: punctuation.separator.decimal.redbol
+        2: constant.numeric.exponent.redbol
+        3: punctuation.separator.exponent.redbol
+
+  match-hex-integers:
+    #Note: hex integers are so far Red only (and probably will be replaced)
+    #Note: \h would allow also 0h, but that is not valid in Red
+    - match: \b([0-9A-F]{2}{0,4})(h)\b
+      scope: constant.numeric.hex.redbol
+      captures:
+        2: storage.type.numeric.hex.redbol
+
+  match-time:
+    #Note: Red and Rebol3 does not support am/pm part as Rebol2 did!
+    - match: ([+-])?(?:\d+(:))?\d+(:)\d+(?:([.,])\d+)?(?:(?i)(am|pm))?
+      scope: constant.numeric.time.redbol
+      captures:
+        2: punctuation.separator.time.redbol
+        3: punctuation.separator.time.redbol
+        4: punctuation.separator.time.redbol
+        5: storage.type.ampm.redbol
+
+  match-date:
+    - match: |-
+        (?x:
+          (?:
+            (?:\d+(-)({{months}})(-)\w+)|
+            (?:\d+(/)({{months}})(/)\w+)
+          )
+          (?:
+            (/)(?:\d+(:))?\d+(:)\d+(?:([.,])\d+)?(?:(?i)(am|pm))? # Time
+            (?:([+-])\d+(:)\d+)?                                  # Timezone
+          )?
+        )
+      scope: constant.numeric.date.redbol
+      captures:
+        #1:  punctuation.separator.time.redbol
+        2:  constant.numeric.date.month.redbol
+        #3:  punctuation.separator.time.redbol
+        4:  punctuation.separator.time.redbol
+        5:  constant.numeric.date.month.redbol
+        6:  punctuation.separator.time.redbol
+        7:  punctuation.separator.time.redbol
+        8:  punctuation.separator.time.redbol
+        9:  storage.type.ampm.redbol
+        10: punctuation.separator.time.redbol
+        11: punctuation.separator.time.redbol
+
+  match-money:
+    - match: ([a-zA-Z]{0,3})?(\$)(?:\d+|{{float_or_int}})
+      scope: constant.numeric.money.redbol
+      captures:
+        1: storage.type.money.currency.name.redbol
+        2: storage.type.money.currency.symbol.redbol
+
+  # TODO: `punctuation.separator` for punctuation. Requires push/pop.
+  match-tuple:
+    - match: \d+\.\d+(?:\.|(?:\.\d+)+)
+      scope: constant.numeric.tuple.redbol
+
+  match-tag:
+    - match: '<(?:\/|%\=?\ )?(?:([-_a-zA-Z0-9]+):)?([-_a-zA-Z0-9:]+)'
+      captures:
+        0: entity.other.namespace.xml
+        1: entity.name.tag.xml
+      push:
+        - meta_scope: entity.tag.redbol
+        - match: (?:\s/|\ %)?>
+          pop: true
+        - match: ' (?:([-_a-zA-Z0-9]+):)?([_a-zA-Z-]+)'
+          captures:
+            0: entity.other.namespace.xml
+            1: entity.other.attribute-name.xml
+        - match: "'"
+          push:
+            - meta_scope: string.quoted.single.xml
+            - match: "'"
+              pop: true
+        - match: '"'
+          push:
+            - meta_scope: string.quoted.double.xml
+            - match: '"'
+              pop: true
+
+  # Note: the email literal in Red is EXTREMELY permissive.
+  # Note: this is actually ref! datatype: @name
+  # TODO: `punctuation.separator` for punctuation. Requires push/pop.
+  match-email:
+    - match: '[^{{non_email_chars}}]*(@)[^{{non_email_chars}}]*'
+      scope: string.email.redbol
+      captures:
+        1: storage.type.email.redbol
+
+  # Note: the URL literal in Red is EXTREMELY permissive.
+  # Note: these are also url! types: scheme:something & mailto:email@foo.com
+  # TODO: `punctuation.separator` for punctuation. Requires push/pop.
+  # TODO: support for percent encoding: %aa%20bb is same like %"aa bb"
+  match-url:
+    #- match: ([[:alpha:]][^{{non_url_chars}}:/]*)(:) ((/{0,2})(([^{{non_url_chars}}@]+)(@))?[^{{non_url_chars}}]* | [^{{non_url_chars}}]+)
+    #- match: ([[:alpha:]][^{{non_url_chars}}:/]*)(:)((/{0,2})[^{{non_url_chars}}]* | [^{{non_url_chars}}]+)
+    - match: ([[:alpha:]][^{{non_url_chars}}:/]*)(:)(((/{1,2})(([^{{non_url_chars}}@]+)(@))?[^{{non_url_chars}}]*)|(([^{{non_url_chars}}@]+)(@))?[^{{non_url_chars}}]+)
+      scope: string.url.redbol
+      captures:
+        1: string.url.scheme.redbol
+        2: storage.type.url.redbol
+        5: storage.type.url.redbol
+        7: string.url.user.redbol
+        8: storage.type.url.redbol
+        10: string.url.user.redbol
+        11: storage.type.url.redbol
+
+  # TODO: support for percent encoding: %aa%20bb is same like %"aa bb"
+  match-file:
+    - match: (\%)(")
+      scope: string.filename.redbol
+      captures:
+        1: storage.type.filename.redbol
+        2: punctuation.definition.string.begin.redbol
+      push:
+        - meta_scope: string.filename.redbol
+        - include: pop-string-double
+    - match: (\%)[^\s\[\](){};@%]*
+      scope: string.filename.redbol
+      captures:
+        1: storage.type.filename.redbol
+
+  match-char:
+    - match: '(#")'
+      scope: storage.type.character.redbol
+      captures:
+        1: punctuation.definition.character.begin.redbol
+      push:
+        # TODO: capture invalid chars like: #"xxxxx" and #"^xxx"?
+        - meta_scope: storage.string.character.redbol
+        - match: '"'
+          scope: punctuation.definition.character.end.redbol
+          pop: true
+        - match: \^\([^)]*\)
+          scope: constant.character.escape.redbol
+        - match: \^.([^"]+)
+          scope: constant.character.escape.redbol
+        #  captures:
+        #    1: invalid.illegal.redbol
+
+  match-html-characters:
+    - match: "(&)([a-zA-Z0-9]+|#[0-9]+|#x[0-9a-fA-F]+)(;)"
+      scope: constant.character.entity.html
+      captures:
+        0: punctuation.definition.entity.html
+        2: punctuation.definition.entity.html
+
+  match-hashtag:
+    - match: (?:\#{)
+      captures:
+        0: string.binary.prefix
+      push: pop-binary-base16
+    - match: (?:\#\()
+      captures:
+        0: meta.mapping.begin.redbol
+      push: pop-mapping
+    - match: (?:\#\[(?![\]]))
+      captures:
+        0: meta.construct.begin.redbol
+      push: pop-construct
+    - match: (\#)(?![^{{non_ident_chars}}@])
+      scope: invalid.redbol
+      captures:
+        1: invalid.illegal.redbol
+    - match: (\#)[\w#-]+
+      scope: word.issue.redbol
+      captures:
+        1: storage.type.issue.redbol
+
+  pop-construct:
+    - meta_scope: meta.construct.redbol
+    - match: ']'
+      scope: meta.construct.end.redbol
+      pop: true
+    - include: main
+
+  pop-mapping:
+    - meta_scope: meta.mapping.redbol
+    - match: '\)'
+      scope: meta.mapping.end.redbol
+      pop: true
+    - include: main
+
+
+  # TODO: support ANSI escape sequences.
+  match-string:
+    - include: match-string-double
+    - include: match-string-braces
+
+  match-string-double:
+    - match: '"'
+      scope: punctuation.definition.string.begin.redbol
+      push: pop-string-double
+
+  match-string-escaped-char:
+    - match: '\^\((\h{0,4}|null|line|tab|page|esc|back|del)\)'
+      scope: constant.character.escape.redbol
+    - match: \^(?![\(])[[:ascii:]]
+      scope: constant.character.escape.redbol
+    - match: \^(.)
+      captures:
+        0: invalid.redbol
+        1: invalid.illegal.redbol
+
+  pop-string-double:
+    - meta_include_prototype: false
+    - meta_scope: string.quoted.double.redbol
+    - match: '"'
+      scope: punctuation.definition.string.end.redbol
+      pop: true
+    - include: match-string-escaped-char
+
+  match-string-braces:
+    - match: '{'
+      scope: punctuation.definition.string.begin.redbol
+      push: pop-string-braces
+
+  pop-string-braces:
+    - meta_include_prototype: false
+    - meta_scope: string.quoted.double.redbol
+    - match: '}'
+      scope: punctuation.definition.string.end.redbol
+      pop: true
+    #- include: rsp-tag
+    - include: match-string-escaped-char
+    - include: match-html-characters
+    - include: match-string-braces
+
+  match-pair:
+    - match: '({{inf_or_nan}}|{{float_or_int}}|\d+)(x)({{inf_or_nan}}|{{float_or_int}}|\d+)'
+      scope: constant.numeric.pair.redbol
+      captures:
+         2: constant.numeric.pair.special.redbol
+         6: storage.type.numeric.pair.redbol
+
+  match-binary:
+    - include: match-binary-base2
+    - include: match-binary-base16
+    - include: match-binary-base64
+
+  match-binary-base16:
+    - match: '(16)?#\{'
+      captures:
+        0: string.binary.prefix
+      push: pop-binary-base16
+
+  match-binary-base64:
+    - match: '64#\{'
+      captures:
+        0: string.binary.prefix
+      push:
+        - meta_scope: binary.base64.redbol
+        - match: ';.*$'
+          scope: comment.line.redbol
+        - match: '\}'
+          captures:
+            0: string.binary.prefix
+          pop: true
+        - match: '[0-9a-zA-Z+/=\s]*'
+          scope: string.binary.base64.redbol
+        - match: .
+          scope: invalid.illegal.redbol
+
+  match-binary-base2:
+    - match: '2#\{'
+      captures:
+        0: string.binary.prefix
+      push:
+        - meta_scope: binary.base2.redbol
+        - match: '\}'
+          captures:
+            0: string.binary.prefix
+          pop: true
+        - match: ';.*$'
+          scope: comment.line.redbol
+        - match: '[01\s]s*'
+          scope: string.binary.base2.redbol
+        - match: .
+          scope: invalid.illegal.redbol
+
+  pop-binary-base16:
+    - meta_scope: binary.base16.redbol
+    - match: '\}'
+      captures:
+        0: string.binary.prefix
+      pop: true
+    - match: ';.*$'
+      scope: comment.line.redbol
+    - match: '[0-9a-fA-F\s]*'
+      scope: string.binary.base16.redbol
+    - match: .
+      scope: invalid.illegal.redbol
+
+  match-comment-lines:
+    - include: match-comment-docline
+    - include: match-comment-todo
+    - include: match-comment-line
+
+  match-comment-docline:
+    - match: '({{comment_line_start}}[-]+).*$'
+      scope: comment.docline.redbol
+      captures:
+        1: punctuation.definition.comment.begin.redbol
+
+  match-comment-todo:
+    - match: '({{comment_line_start}}@@).*$'
+      scope: comment.todo.redbol
+      captures:
+        1: punctuation.definition.comment.todo.redbol
+
+  match-comment-line:
+    - match: '({{comment_line_start}}).*$'
+      scope: comment.line.redbol
+      captures:
+        1: punctuation.definition.comment.begin.redbol
+
+  match-comment:
+    - match: '(comment){{word_boundary}}(?![\)\]\}])(\s+(quote))?\s*'
+      scope: comment.block.redbol
+      push:
+        - pop-comment-value
+        #- pop-before-nonblank
+
+  pop-comment-value:
+    - match: (#)?\[
+      scope: comment.value.block.redbol
+      set: pop-comment-value-block-tail
+    - match: (#|2#|16#|64#)?\{
+      scope: comment.value.string.redbol
+      set: pop-comment-value-string-multiline-tail
+    - match: \"
+      scope: comment.value.string.redbol
+      set: pop-comment-value-string-line-tail
+    - match: (#)?\(
+      scope: comment.value.paren.redbol
+      set: pop-comment-value-paren-tail
+    - match: ''
+      pop: true
+
+  pop-comment-value-block-tail:
+    - meta_scope: comment.value.block.redbol
+    - match: \]
+      pop: true
+    - match: \[
+      push: pop-comment-value-block-tail
+
+  pop-comment-value-string-multiline-tail:
+    - meta_scope: comment.value.string.redbol
+    - match: \}
+      pop: true
+    - match: \^\}
+    - match: \{
+      push: pop-comment-value-string-multiline-tail
+
+  pop-comment-value-string-line-tail:
+    - meta_scope: comment.value.string.redbol
+    - match: \"
+      pop: true
+    - match: \^\"
+    - match: \"
+      push: pop-comment-value-string-line-tail
+
+  pop-comment-value-paren-tail:
+    - meta_scope: comment.value.paren.redbol
+    - match: \)
+      pop: true
+    - match: \(
+      push: pop-comment-value-paren-tail
+
+  match-constants:
+    - match: \b(?:true|false|none)(?![^{{non_ident_chars}}])
+      scope: constant.language.redbol
+
+  match-idents:
+    - include: match-set-word   # functions are handled from inside set-words
+    - include: match-get-word
+    - include: match-keywords
+    - include: match-ident-type
+    - include: match-ident-query
+    - include: match-ident-other
+
+  match-set-word:
+    - match: '(:)(:)+{{word_boundary}}'
+      captures:
+        2: invalid.illegal.redbol
+    - include: match-decl-function
+    - match: '({{ident}})(:){{word_boundary}}'
+      captures:
+        1: entity.name.word.set.redbol
+        2: keyword.operator.assignment.redbol
+
+  match-get-word:
+    - match: '(:)({{ident}}){{word_boundary}}'
+      captures:
+        1: keyword.operator.assignment.redbol
+        2: entity.name.word.get.redbol
+
+  match-lit-word:
+    - match: (\')({{lit_word_chars}}){{word_boundary}}
+      captures:
+        1: keyword.operator.quote.redbol
+        2: entity.name.word.lit.redbol
+    - match: (\')(.)
+      captures:
+        1: keyword.operator.quote.redbol
+        2: invalid.illegal.redbol
+
+  match-refinement:
+    - match: (/)({{refinement_chars}}){{word_boundary}}
+      captures:
+        1: keyword.operator.refinement.redbol
+        2: entity.name.word.refinement.redbol
+
+  match-keywords:
+    - match: '(?i)(if|either|unless|case|switch){{word_boundary}}'
+      scope: keyword.control.conditional.redbol
+    - match: '(?i)(foreach|forall|forskip|for|until|while){{word_boundary}}'
+      scope: keyword.control.loop.redbol
+    - match: '(?i)(break|return|exit|quit|halt|continue){{word_boundary}}'
+      scope: keyword.control.flow.redbol
+    - match: '(?i)(print|prin|probe|\?\?|\?){{word_boundary}}'
+      scope: keyword.other.output.redbol
+    - match: '(?i)(==|!=|<=|>=|<>|<|>|=){{word_boundary}}'
+      scope: keyword.operator.comparison.redbol
+    - match: '(?i)(all|any|not){{word_boundary}}'
+      scope: keyword.operator.logical.redbol
+    - match: '(?i)(ui8(le|be|bytes)?|ui16(le|be|bytes)?|ui24(le|be|bytes)?|ui32(le|be|bytes)?|ui64(le|be|bytes)?|si8(le|be|bytes)?|si16(le|be|bytes)?|si24(le|be|bytes)?|si32(le|be|bytes)?|si64(le|be|bytes)?){{word_boundary}}'
+      scope: storage.type.datatype.bincode.redbol
+    - match: '(BIT|SB|UB|INDEX|FIXED8|BYTES){{word_boundary}}'
+      scope: storage.type.datatype.bincode.redbol
+    - match: '(\+\+|--){{word_boundary}}'
+      scope: keyword.operator.assignment.augmented.redbol
+    - include: match-keyword-tests
+
+  # these are special function names used in unit tests
+  match-keyword-tests:
+    - match: (~~~(start|end)-file~~~){{word_boundary}}
+      scope: variable.other.test.file.redbol
+    - match: (===(start|end)-group===){{word_boundary}}
+      scope: variable.other.test.group.redbol
+    - match: '(--test--){{word_boundary}}'
+      scope: variable.other.test.redbol
+    - match: '(--assert(f~=|-er)?){{word_boundary}}'
+      scope: variable.other.test.assert.redbol
+
+  match-ident-type:
+    - match: (to|as|make)\s+{{ident}}(!){{word_boundary}}
+      scope: storage.type.datatype.redbol
+      captures:
+        2: storage.type.punctuation.redbol
+    - match: '{{ident}}(!){{word_boundary}}'
+      scope: storage.type.datatype.redbol
+      captures:
+        1: storage.type.punctuation.redbol
+    - match: (to-{{ident}}){{word_boundary}}
+      scope: storage.type.datatype.redbol
+
+  match-ident-query:
+    - match: '{{ident}}(\?){{word_boundary}}'
+      scope: word.query.redbol
+      captures:
+        1: storage.type.punctuation.redbol
+
+  match-ident-other:
+    - match: '{{ident}}'
+      scope: variable.other.redbol
+
+  match-decl-function:
+    - match: ({{ident}})(:)\s*(function|funct|func|does|module|closure|native|action|has)(?![^{{non_ident_chars}}])
+      captures:
+        1: entity.name.function.redbol
+        2: keyword.operator.assignment.redbol
+        3: storage.type.function.redbol
+      #push:
+      #  - pop-block
+      #  - pop-locals
+      #  - pop-params
+
+  match-punctuation:
+    - include: match-slash
+    - include: match-blocks
+    - include: match-parens
+
+  match-slash:
+    - match: /
+      scope: punctuation.accessor.slash.redbol
+
+  match-blocks:
+    - match: \[
+      scope: punctuation.section.block.begin.redbol
+      push: pop-block-tail
+    - match: \]
+      scope: punctuation.section.block.end.redbol invalid.illegal.redbol
+
+  pop-block-tail:
+    - meta_scope: meta.block.redbol
+    - match: \]
+      scope: punctuation.section.block.end.redbol
+      pop: true
+    - include: main
+
+  match-parens:
+    - match: \(
+      scope: punctuation.section.parens.begin.redbol
+      push: pop-parens-tail
+    - match: \)
+      scope: punctuation.section.parens.end.redbol invalid.illegal.redbol
+
+  pop-parens-tail:
+    - meta_scope: meta.paren.redbol
+    - match: \)
+      scope: punctuation.section.parens.end.redbol
+      pop: true
+    - include: main
+
+# unused:
+
+#  pop-block:
+#    - match: \s*\[
+#      scope: punctuation.section.block.begin.redbol
+#      set: pop-block-tail
+#    - include: pop-before-nonblank
+#
+#  pop-before-nonblank:
+#    - match: (?=\S)
+#      pop: true
+
+#  rsp-tag:
+#    - match: <%=
+#      push:
+#        - meta_scope: source.redbol
+#        - match: "%>"
+#          pop: true
+#        - include: scope:source.redbol

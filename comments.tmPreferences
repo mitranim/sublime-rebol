@@ -2,7 +2,7 @@
 <plist version="1.0">
 <dict>
   <key>scope</key>
-  <string>source.rebol</string>
+  <string>source.redbol</string>
   <key>settings</key>
   <dict>
     <key>shellVariables</key>
